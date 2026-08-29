@@ -1,0 +1,6 @@
+{
+  "name": "MarketPulseAI",
+  "description": "An intelligent AI agent and analytics platform that analyzes marketing campaign performance across Google Ads, Meta, LinkedIn, YouTube, and Email to identify winning campaigns, detect anomalies, provide explainable recommendations, future forecasts, and sustainability intelligence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
