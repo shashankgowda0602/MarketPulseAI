@@ -228,10 +228,21 @@ export interface PlatformPerformanceItem {
 }
 
 export function calculatePlatformPerformance(campaigns: Campaign[]): PlatformPerformanceItem[] {
-  const platforms: PlatformType[] = ['Google Ads', 'Meta Ads', 'Instagram', 'LinkedIn', 'YouTube', 'Email'];
   const safeList = Array.isArray(campaigns) ? campaigns.filter((c) => c && typeof c === 'object') : [];
+  if (safeList.length === 0) return [];
 
-  return platforms.map((platform) => {
+  // Dynamically extract all unique platforms from the campaigns
+  const uniquePlatforms = Array.from(
+    new Set(
+      safeList
+        .map((c) => (c.platform ? String(c.platform).trim() : ''))
+        .filter(Boolean)
+    )
+  );
+
+  if (uniquePlatforms.length === 0) return [];
+
+  const items = uniquePlatforms.map((platform) => {
     const list = safeList.filter((c) => c.platform === platform);
     const count = list.length;
     const spend = list.reduce((acc, c) => acc + (isNaN(Number(c.spend)) ? 0 : Math.max(0, Number(c.spend))), 0);
@@ -261,6 +272,9 @@ export function calculatePlatformPerformance(campaigns: Campaign[]): PlatformPer
       conversionRate: Number((isNaN(conversionRate) || !isFinite(conversionRate) ? 0 : conversionRate).toFixed(2)),
     };
   });
+
+  // Sort channels by spend descending, secondary by revenue descending
+  return items.sort((a, b) => b.spend - a.spend || b.revenue - a.revenue);
 }
 
 export interface FunnelStage {

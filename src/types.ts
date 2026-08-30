@@ -1,4 +1,16 @@
-export type PlatformType = 'Google Ads' | 'Meta Ads' | 'Instagram' | 'LinkedIn' | 'YouTube' | 'Email';
+export type PlatformType =
+  | 'Google Ads'
+  | 'Meta Ads'
+  | 'Instagram'
+  | 'LinkedIn'
+  | 'YouTube'
+  | 'Email'
+  | 'TikTok'
+  | 'Pinterest'
+  | 'X / Twitter'
+  | 'Snapchat'
+  | 'Amazon Ads'
+  | (string & {});
 
 export type CampaignStatus = 'winning' | 'needs_attention' | 'underperforming' | 'insufficient_data';
 

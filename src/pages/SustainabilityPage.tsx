@@ -13,13 +13,14 @@ import {
   ArrowRight,
   Globe,
   Sliders,
+  FileCheck,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { calculateSustainabilityMetrics } from '../utils/insightsEngine';
 import { calculateDatasetSummary } from '../utils/analyticsEngine';
 
 export const SustainabilityPage: React.FC = () => {
-  const { campaigns, formatMoney, setCurrentPage } = useApp();
+  const { campaigns, formatMoney, setCurrentPage, uploadedFileInfo } = useApp();
 
   const metrics = calculateSustainabilityMetrics(campaigns);
   const summary = calculateDatasetSummary(campaigns);
@@ -34,6 +35,12 @@ export const SustainabilityPage: React.FC = () => {
             <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200">
               Triple-Bottom-Line Framework
             </span>
+            {uploadedFileInfo && (
+              <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1">
+                <FileCheck className="w-3 h-3" />
+                Active Dataset: {uploadedFileInfo.fileName}
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Optimizing for capital efficiency, team time conservation, and long-term brand goodwill over short-term vanity clicks.

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   Sliders,
-  DollarSign,
   AlertCircle,
   Sparkles,
   Layers,
@@ -10,6 +9,7 @@ import {
   ShieldCheck,
   RotateCcw,
   Percent,
+  FileCheck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -24,35 +24,53 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { generateForecastData, calculateStrategySimulation } from '../utils/insightsEngine';
-import { calculateDatasetSummary } from '../utils/analyticsEngine';
+import { calculateDatasetSummary, calculatePlatformPerformance } from '../utils/analyticsEngine';
 
 export const ForecastingPage: React.FC = () => {
-  const { campaigns, formatMoney } = useApp();
+  const { campaigns, formatMoney, uploadedFileInfo } = useApp();
 
   const [forecastHorizon, setForecastHorizon] = useState<'30D' | '60D' | '90D'>('30D');
 
-  // Strategy Simulator Sliders (percent change from current allocation)
-  const [googleSlider, setGoogleSlider] = useState<number>(12);
-  const [metaSlider, setMetaSlider] = useState<number>(-10);
-  const [linkedinSlider, setLinkedinSlider] = useState<number>(5);
-  const [emailSlider, setEmailSlider] = useState<number>(20);
+  const platforms = React.useMemo(() => {
+    const pSet = Array.from(new Set(campaigns.map((c) => c.platform || 'General Ads')));
+    return pSet.length > 0 ? pSet : ['Google Ads', 'Meta Ads', 'LinkedIn', 'Email'];
+  }, [campaigns]);
+
+  // Dynamic Strategy Simulator Sliders (percent change from current allocation per channel)
+  const [channelSliders, setChannelSliders] = useState<Record<string, number>>({});
+
+  // Initialize sliders when platforms change
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    platforms.forEach((p, idx) => {
+      // Default subtle recommended adjustment based on channel position
+      if (idx === 0) initial[p] = 10; // Top channel
+      else if (idx === 1) initial[p] = -5;
+      else if (idx === 2) initial[p] = 5;
+      else initial[p] = 0;
+    });
+    setChannelSliders(initial);
+  }, [platforms]);
+
+  const handleSliderChange = (platform: string, val: number) => {
+    setChannelSliders((prev) => ({ ...prev, [platform]: val }));
+  };
+
+  const resetSliders = () => {
+    const reset: Record<string, number> = {};
+    platforms.forEach((p) => {
+      reset[p] = 0;
+    });
+    setChannelSliders(reset);
+  };
 
   const forecastData = generateForecastData(campaigns);
   const summary = calculateDatasetSummary(campaigns);
-  const simulation = calculateStrategySimulation(
-    campaigns,
-    googleSlider,
-    metaSlider,
-    linkedinSlider,
-    emailSlider
-  );
+  const simulation = calculateStrategySimulation(campaigns, channelSliders);
 
-  const resetSliders = () => {
-    setGoogleSlider(0);
-    setMetaSlider(0);
-    setLinkedinSlider(0);
-    setEmailSlider(0);
-  };
+  // Find the cutoff date where historical data transitions to forecast
+  const cutoffItem = forecastData.find((p) => !p.isHistorical) || forecastData[Math.floor(forecastData.length / 2)];
+  const cutoffDate = cutoffItem ? cutoffItem.date : 'Today';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300 pb-12">
@@ -64,9 +82,15 @@ export const ForecastingPage: React.FC = () => {
             <span className="text-[10px] font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
               Confidence Interval Engine
             </span>
+            {uploadedFileInfo && (
+              <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                <FileCheck className="w-3 h-3" />
+                Live: {uploadedFileInfo.fileName}
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Historical regression modeling with expanding uncertainty cones and scenario elasticity simulations.
+            Historical regression modeling with expanding uncertainty cones and scenario elasticity simulations anchored directly to your uploaded campaign dataset.
           </p>
         </div>
 
@@ -96,7 +120,7 @@ export const ForecastingPage: React.FC = () => {
               <TrendingUp className="w-4 h-4 text-purple-600" />
               <span>Projected Revenue Trajectory & Confidence Bounds</span>
             </h2>
-            <p className="text-xs text-slate-500">Historical performance (solid) transitioned to future forecast (expanding band)</p>
+            <p className="text-xs text-slate-500">Historical performance transitioned to future forecast with expanding uncertainty band</p>
           </div>
           <div className="flex items-center gap-3 text-xs">
             <span className="flex items-center gap-1 text-slate-700 font-medium">
@@ -124,7 +148,7 @@ export const ForecastingPage: React.FC = () => {
                 contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '12px', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 formatter={(val: any, name: any) => [formatMoney(Number(val)), name]}
               />
-              <ReferenceLine x="Aug 14" stroke="#EF4444" strokeDasharray="3 3" label={{ value: 'Forecast Cutoff', fill: '#EF4444', fontSize: 10 }} />
+              <ReferenceLine x={cutoffDate} stroke="#EF4444" strokeDasharray="3 3" label={{ value: 'Forecast Cutoff', fill: '#EF4444', fontSize: 10 }} />
               <Area type="monotone" dataKey="revenueUpper" stroke="none" fill="url(#colorUpper)" fillOpacity={1} name="Upper Bound (+15%)" />
               <Area type="monotone" dataKey="revenue" stroke="#9333ea" strokeWidth={2.5} fill="none" name="Projected Revenue" />
               <Area type="monotone" dataKey="revenueLower" stroke="none" fill="#ffffff" fillOpacity={1} name="Lower Bound (-15%)" />
@@ -136,7 +160,7 @@ export const ForecastingPage: React.FC = () => {
         <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-600">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <div>
-            <strong className="text-slate-800">Declared Model Assumptions:</strong> Baseline projection assumes stable cost per click and seasonal search demand. Macro consumer sentiment shocks and competitor bidding escalations are excluded.
+            <strong className="text-slate-800">Declared Model Assumptions:</strong> Baseline projection dynamically calculates from {campaigns.length} uploaded campaigns with total spend of {formatMoney(summary.totalSpend)}. Macro consumer sentiment shocks and sudden competitor bidding escalations are excluded.
           </div>
         </div>
       </div>
@@ -148,7 +172,9 @@ export const ForecastingPage: React.FC = () => {
             <Sliders className="w-5 h-5 text-indigo-600" />
             <div>
               <h2 className="text-sm font-bold text-slate-900">Interactive Budget Strategy Simulator</h2>
-              <p className="text-xs text-slate-500">Adjust channel percentage shifts to simulate elasticity, revenue, and risk</p>
+              <p className="text-xs text-slate-500">
+                Adjust channel percentage shifts across all {platforms.length} channels in your uploaded dataset to simulate elasticity, revenue, and risk
+              </p>
             </div>
           </div>
           <button
@@ -163,101 +189,42 @@ export const ForecastingPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Sliders Form */}
           <div className="space-y-5 text-xs">
-            {/* Google Ads */}
-            <div className="space-y-2">
-              <div className="flex justify-between font-semibold">
-                <span className="text-slate-800">Google Ads (Search & Shopping)</span>
-                <span className={`font-mono font-bold ${googleSlider >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {googleSlider >= 0 ? `+${googleSlider}%` : `${googleSlider}%`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-50"
-                max="50"
-                step="5"
-                value={googleSlider}
-                onChange={(e) => setGoogleSlider(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Cut</span>
-                <span>Baseline (0%)</span>
-                <span>+50% Scale</span>
-              </div>
-            </div>
+            {platforms.map((platform) => {
+              const val = channelSliders[platform] || 0;
+              const pCampaigns = campaigns.filter((c) => c.platform === platform);
+              const pSpend = pCampaigns.reduce((s, c) => s + (c.spend || 0), 0);
+              const pRoas = pSpend > 0 ? (pCampaigns.reduce((s, c) => s + (c.revenue || 0), 0) / pSpend).toFixed(2) : '0';
 
-            {/* Meta Ads */}
-            <div className="space-y-2">
-              <div className="flex justify-between font-semibold">
-                <span className="text-slate-800">Meta Ads (Facebook & Reels)</span>
-                <span className={`font-mono font-bold ${metaSlider >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {metaSlider >= 0 ? `+${metaSlider}%` : `${metaSlider}%`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-50"
-                max="50"
-                step="5"
-                value={metaSlider}
-                onChange={(e) => setMetaSlider(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Cut</span>
-                <span>Baseline (0%)</span>
-                <span>+50% Scale</span>
-              </div>
-            </div>
-
-            {/* LinkedIn */}
-            <div className="space-y-2">
-              <div className="flex justify-between font-semibold">
-                <span className="text-slate-800">LinkedIn Ads (B2B Sponsored Content)</span>
-                <span className={`font-mono font-bold ${linkedinSlider >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {linkedinSlider >= 0 ? `+${linkedinSlider}%` : `${linkedinSlider}%`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-50"
-                max="50"
-                step="5"
-                value={linkedinSlider}
-                onChange={(e) => setLinkedinSlider(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Cut</span>
-                <span>Baseline (0%)</span>
-                <span>+50% Scale</span>
-              </div>
-            </div>
-
-            {/* Email Marketing */}
-            <div className="space-y-2">
-              <div className="flex justify-between font-semibold">
-                <span className="text-slate-800">Email Marketing & Lifecycle Drops</span>
-                <span className={`font-mono font-bold ${emailSlider >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {emailSlider >= 0 ? `+${emailSlider}%` : `${emailSlider}%`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min="-50"
-                max="50"
-                step="5"
-                value={emailSlider}
-                onChange={(e) => setEmailSlider(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>-50% Cut</span>
-                <span>Baseline (0%)</span>
-                <span>+50% Scale</span>
-              </div>
-            </div>
+              return (
+                <div key={platform} className="space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="flex justify-between items-center font-semibold">
+                    <div>
+                      <span className="text-slate-900">{platform}</span>
+                      <span className="text-[10px] text-slate-500 font-normal ml-2">
+                        (Current: {formatMoney(pSpend)} · {pRoas}x ROAS)
+                      </span>
+                    </div>
+                    <span className={`font-mono font-bold ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {val >= 0 ? `+${val}%` : `${val}%`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="-50"
+                    max="50"
+                    step="5"
+                    value={val}
+                    onChange={(e) => handleSliderChange(platform, Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400">
+                    <span>-50% Cut</span>
+                    <span>Baseline (0%)</span>
+                    <span>+50% Scale</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Real-time Projected Outcome Panel */}
