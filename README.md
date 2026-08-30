@@ -101,6 +101,9 @@ The compiled static website will be created in the `/dist` directory.
 
 ---
 
+###View website: https://market-pulse-ai-360.vercel.app/
+```
+
 ## 🏗️ System Architecture
 
 ```text
@@ -183,7 +186,6 @@ The compiled static website will be created in the `/dist` directory.
    ```bash
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
