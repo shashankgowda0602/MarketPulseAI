@@ -101,7 +101,7 @@ The compiled static website will be created in the `/dist` directory.
 
 ---
 
-###View website: https://market-pulse-ai-360.vercel.app/
+### View website: https://market-pulse-ai-360.vercel.app/
 ```
 
 ## 🏗️ System Architecture
